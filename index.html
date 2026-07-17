@@ -519,7 +519,7 @@ function renderCard(){
   document.getElementById('speak-btn').classList.toggle('hidden', !ttsSupported);
   revealed = false;
   document.getElementById('stat-pos').textContent = (pos+1) + '/' + deck.length;
-  if(ttsSupported) speakText(c.q);
+  
 }
 function renderStats(){
   document.getElementById('stat-rev').textContent = sessionReviewed;
