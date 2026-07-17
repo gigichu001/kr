@@ -186,6 +186,14 @@ button.ghost{ background:transparent; }
   width:100%;
 }
 .card .hint{ margin-top:14px; font-size:12px; color:var(--ink-faint); }
+.speak-btn{
+  display:inline-flex; align-items:center; justify-content:center;
+  width:38px; height:38px; border-radius:50%; margin-top:12px;
+  background: var(--paper-2); border:1px solid var(--brown-line); color:var(--brown-deep);
+  font-size:17px; cursor:pointer; padding:0;
+}
+.speak-btn:active{ transform: translateY(1px); }
+.speak-btn.hidden{ display:none !important; }
 
 .gradebar{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
 .gradebar .no{ border-color:var(--bad); color:var(--bad); }
@@ -255,6 +263,7 @@ button.ghost{ background:transparent; }
     </div>
     <div class="card" id="card" onclick="flipCard()">
       <div class="front" id="card-front">-</div>
+      <button class="speak-btn" id="speak-btn" onclick="speakCurrentWord(event)" aria-label="발음 듣기" title="발음 듣기">🔊</button>
       <div class="back" id="card-back">-</div>
       <div class="hint" id="card-hint">tap to reveal</div>
     </div>
@@ -314,6 +323,34 @@ function loadCustom(){
   try{ return JSON.parse(localStorage.getItem('hangul_custom_v1')) || []; }catch(e){ return []; }
 }
 function saveCustom(list){ try{ localStorage.setItem('hangul_custom_v1', JSON.stringify(list)); }catch(e){} }
+
+/* ---------- pronunciation (TTS) ---------- */
+var ttsSupported = ('speechSynthesis' in window);
+var koVoice = null;
+function pickKoVoice(){
+  if(!ttsSupported) return;
+  var voices = window.speechSynthesis.getVoices();
+  koVoice = voices.filter(function(v){ return v.lang === 'ko-KR'; })[0] ||
+            voices.filter(function(v){ return v.lang && v.lang.indexOf('ko') === 0; })[0] || null;
+}
+if(ttsSupported){
+  pickKoVoice();
+  window.speechSynthesis.onvoiceschanged = pickKoVoice;
+}
+function speakText(text){
+  if(!ttsSupported || !text) return;
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = 'ko-KR';
+  if(koVoice) u.voice = koVoice;
+  u.rate = 0.9;
+  window.speechSynthesis.speak(u);
+}
+function speakCurrentWord(ev){
+  if(ev) ev.stopPropagation();
+  if(deck.length === 0) return;
+  speakText(deck[pos].q);
+}
 
 /* ---------- utils ---------- */
 function shuffle(arr){
@@ -479,8 +516,10 @@ function renderCard(){
   document.getElementById('card-back').style.visibility = 'hidden';
   document.getElementById('card-hint').textContent = 'tap to reveal';
   document.getElementById('card-hint').style.visibility = 'visible';
+  document.getElementById('speak-btn').classList.toggle('hidden', !ttsSupported);
   revealed = false;
   document.getElementById('stat-pos').textContent = (pos+1) + '/' + deck.length;
+  if(ttsSupported) speakText(c.q);
 }
 function renderStats(){
   document.getElementById('stat-rev').textContent = sessionReviewed;
