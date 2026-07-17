@@ -201,6 +201,13 @@ button.ghost{ background:transparent; }
   width:100%;
 }
 .card .hint{ margin-top:14px; font-size:12px; color:var(--ink-faint); }
+.timer-badge{
+  margin-top:8px;
+  font-size:12px;
+  color:var(--ink-faint);
+  font-variant-numeric:tabular-nums;
+}
+.timer-badge.late{ color:var(--bad); font-weight:800; }
 .speak-row{
   display:flex;
   align-items:center;
@@ -231,6 +238,11 @@ button.ghost{ background:transparent; }
 .wronglist .item:last-child{ border-bottom:none; }
 .wronglist .q{ font-family:'Noto Serif KR',serif; font-weight:700; }
 .wronglist .a{ color:var(--ink-soft); }
+.wronglist .time{ color:var(--bad); font-size:12px; white-space:nowrap; }
+.wronglist .group-title{
+  font-size:12px; font-weight:800; color:var(--brown-deep);
+  padding:10px 0 4px; border-bottom:1px solid var(--brown-line);
+}
 .results .actions{ display:grid; gap:10px; }
 .hidden{ display:none !important; }
 .empty-note{ font-size:13px; color:var(--ink-faint); text-align:center; padding:20px 0; }
@@ -295,6 +307,7 @@ button.ghost{ background:transparent; }
       </div>
       <div class="back" id="card-back">-</div>
       <div class="hint" id="card-hint">눌러서 정답 보기</div>
+      <div class="timer-badge" id="card-timer">시간 0.0초</div>
     </div>
     <div class="gradebar">
       <button class="no" onclick="gradeCard(false)">✕ 몰라요</button>
@@ -467,6 +480,10 @@ var pendingMode = 'flashcard';
 var customMode = 'flashcard';
 var sessionReviewed = 0, sessionCorrect = 0;
 var wrongMap = {};
+var slowMap = {};
+var slowTimeMap = {};
+var cardStartedAt = 0;
+var cardTimerInterval = null;
 var deckLabel = '', topLevelId = '';
 var originalDeckForRestart = [];
 var customData = loadCustom();
@@ -631,9 +648,30 @@ function startReview(levelId, data, label, mode){
   sessionReviewed = 0;
   sessionCorrect = 0;
   wrongMap = {};
+  slowMap = {};
+  slowTimeMap = {};
   document.getElementById('review-title').textContent = label;
   renderCard();
   renderStats();
+}
+function stopCardTimer(){
+  if(cardTimerInterval){
+    clearInterval(cardTimerInterval);
+    cardTimerInterval = null;
+  }
+}
+function updateCardTimer(){
+  var timerEl = document.getElementById('card-timer');
+  if(!timerEl || !cardStartedAt) return;
+  var elapsed = Date.now() - cardStartedAt;
+  timerEl.textContent = '시간 ' + (elapsed / 1000).toFixed(1) + '초';
+  timerEl.classList.toggle('late', elapsed > 3000);
+}
+function startCardTimer(){
+  stopCardTimer();
+  cardStartedAt = Date.now();
+  updateCardTimer();
+  cardTimerInterval = setInterval(updateCardTimer, 100);
 }
 function renderCard(){
   if(deck.length === 0){ return; }
@@ -654,6 +692,7 @@ function renderCard(){
   document.getElementById('speak-btn').classList.toggle('hidden', !ttsSupported);
   document.getElementById('speak-parts-btn').classList.toggle('hidden', !ttsSupported || topLevelId !== 'lv5');
   revealed = false;
+  startCardTimer();
   document.getElementById('stat-pos').textContent = (pos+1) + '/' + deck.length;
 }
 function renderStats(){
@@ -674,8 +713,19 @@ function gradeCard(isCorrect){
   if(deck.length === 0) return;
   if(!revealed) flipCard();
   var c = deck[pos];
+  var elapsed = Date.now() - cardStartedAt;
+  stopCardTimer();
+  updateCardTimer();
   sessionReviewed++;
-  if(isCorrect){ sessionCorrect++; } else { wrongMap[c.q] = c; }
+  if(isCorrect){
+    sessionCorrect++;
+    if(elapsed > 3000){
+      slowMap[c.q] = c;
+      slowTimeMap[c.q] = elapsed;
+    }
+  } else {
+    wrongMap[c.q] = c;
+  }
   bumpStat(topLevelId, isCorrect);
   renderStats();
   pos++;
@@ -687,43 +737,58 @@ function shuffleDeck(){
   renderCard();
 }
 function resetStats(){
-  sessionReviewed = 0; sessionCorrect = 0; wrongMap = {};
+  sessionReviewed = 0; sessionCorrect = 0; wrongMap = {}; slowMap = {}; slowTimeMap = {};
   renderStats();
 }
 
 /* ---------- results ---------- */
 function showResults(){
+  stopCardTimer();
   showView('results');
   document.getElementById('res-score').textContent = sessionCorrect + '/' + sessionReviewed;
   document.getElementById('res-acc').textContent = '정확도 ' + pct(sessionCorrect, sessionReviewed) + '%';
   var wrongList = Object.keys(wrongMap).map(function(k){ return wrongMap[k]; });
+  var slowList = Object.keys(slowMap).filter(function(k){ return !wrongMap[k]; }).map(function(k){ return slowMap[k]; });
+  var retryList = wrongList.concat(slowList);
   var wrap = document.getElementById('res-wronglist');
   var retryBtn = document.getElementById('res-retry-btn');
-  if(wrongList.length === 0){
+  if(retryList.length === 0){
     wrap.innerHTML = '<div class="empty-note">모두 맞췄습니다! 🎉</div>';
     retryBtn.classList.add('hidden');
   }else{
     retryBtn.classList.remove('hidden');
-    retryBtn.textContent = '틀린 것만 다시 (' + wrongList.length + '장)';
+    retryBtn.textContent = '다시 연습 (' + retryList.length + '장)';
     var html = '';
-    wrongList.forEach(function(c){
-      html += '<div class="item"><span class="q">' + escapeHtml(c.q) + '</span><span class="a">' + escapeHtml(c.a) + '</span></div>';
-    });
+    if(wrongList.length){
+      html += '<div class="group-title">틀린 것</div>';
+      wrongList.forEach(function(c){
+        html += '<div class="item"><span class="q">' + escapeHtml(c.q) + '</span><span class="a">' + escapeHtml(c.a) + '</span></div>';
+      });
+    }
+    if(slowList.length){
+      html += '<div class="group-title">익숙하지 않음</div>';
+      slowList.forEach(function(c){
+        var seconds = slowTimeMap[c.q] ? (slowTimeMap[c.q] / 1000).toFixed(1) + '초' : '';
+        html += '<div class="item"><span class="q">' + escapeHtml(c.q) + '</span><span class="a">' + escapeHtml(c.a) + '</span><span class="time">' + seconds + '</span></div>';
+      });
+    }
     wrap.innerHTML = html;
   }
 }
 function retryWrongOnly(){
   var wrongList = Object.keys(wrongMap).map(function(k){ return wrongMap[k]; });
-  if(wrongList.length === 0) return;
-  deck = shuffle(wrongList);
-  pos = 0; sessionReviewed = 0; sessionCorrect = 0; wrongMap = {};
+  var slowList = Object.keys(slowMap).filter(function(k){ return !wrongMap[k]; }).map(function(k){ return slowMap[k]; });
+  var retryList = wrongList.concat(slowList);
+  if(retryList.length === 0) return;
+  deck = shuffle(retryList);
+  pos = 0; sessionReviewed = 0; sessionCorrect = 0; wrongMap = {}; slowMap = {}; slowTimeMap = {};
   showView('review');
   renderCard();
   renderStats();
 }
 function restartFullDeck(){
   deck = shuffle(originalDeckForRestart);
-  pos = 0; sessionReviewed = 0; sessionCorrect = 0; wrongMap = {};
+  pos = 0; sessionReviewed = 0; sessionCorrect = 0; wrongMap = {}; slowMap = {}; slowTimeMap = {};
   showView('review');
   renderCard();
   renderStats();
