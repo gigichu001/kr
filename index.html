@@ -409,7 +409,7 @@ function hangulPhonicsStepsForWord(word){
     if(initialSound[cho]) steps.push({text: initialSound[cho], after: 350, rate: 0.72});
     steps.push({text: medialSound[jung], after: 350, rate: 0.72});
     if(finalSound[jong]) steps.push({text: finalSound[jong], after: 350, rate: 0.72});
-    steps.push({text: fullSyllable, after: 3000, rate: 0.82});
+    steps.push({text: fullSyllable, after: 1000, rate: 0.82});
   }
   return steps;
 }
@@ -444,7 +444,7 @@ function speakCurrentWordParts(ev){
   words.forEach(function(word, wordIndex){
     var steps = hangulPhonicsStepsForWord(word);
     queue = queue.concat(steps);
-    if(wordIndex < words.length - 1) queue.push({pause: 3000});
+    if(wordIndex < words.length - 1) queue.push({pause: });
   });
   if(!queue.length) return;
   speakKoQueue(queue);
@@ -664,8 +664,8 @@ function updateCardTimer(){
   var timerEl = document.getElementById('card-timer');
   if(!timerEl || !cardStartedAt) return;
   var elapsed = Date.now() - cardStartedAt;
-  timerEl.textContent = '시간 ' + (elapsed / 3000).toFixed(1) + '초';
-  timerEl.classList.toggle('late', elapsed > 3000);
+  timerEl.textContent = '시간 ' + (elapsed / ).toFixed(1) + '초';
+  timerEl.classList.toggle('late', elapsed > );
 }
 function startCardTimer(){
   stopCardTimer();
