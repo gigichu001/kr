@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>한글 학습 카드 · Exam Flashcards</title>
+<title>한글 학습 카드 · 시험 대비 카드</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600;700&family=Noto+Serif+TC:wght@400;600;700&family=Nanum+Gothic:wght@400;700;800&display=swap" rel="stylesheet">
@@ -109,6 +109,21 @@ body{
 }
 .chip:hover{ background: var(--bg-deep); }
 .chip.full{ background: var(--brown); color:#fff8ec; border-color:var(--brown-deep); font-weight:700; }
+.mode-row{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:10px;
+}
+.mode-chip{
+  border-radius:10px;
+  text-align:center;
+}
+.mode-chip.active{
+  background: var(--gold);
+  border-color: var(--brown-deep);
+  color:#fff8ec;
+}
 .sublevel-panel .close{
   float:right; font-size:12px; color:var(--ink-faint); cursor:pointer; text-decoration:underline;
 }
@@ -219,7 +234,7 @@ button.ghost{ background:transparent; }
 
   <div class="brand">
     <h1>한글 학습 카드</h1>
-    <div class="sub">Exam prep flashcards</div>
+    <div class="sub">시험 대비 학습 카드</div>
   </div>
 
   <!-- HOME VIEW -->
@@ -244,6 +259,10 @@ button.ghost{ background:transparent; }
       <div class="custom-list" id="custom-list"></div>
     </div>
     <div style="margin-top:14px;">
+      <div class="mode-row">
+        <span class="chip full mode-chip" id="custom-dictation-mode" onclick="selectCustomMode('dictation')">받아쓰기</span>
+        <span class="chip full mode-chip active" id="custom-flashcard-mode" onclick="selectCustomMode('flashcard')">카드 학습</span>
+      </div>
       <button class="primary" style="width:100%;" onclick="startCustomReview()">이 카드로 복습 시작 →</button>
     </div>
   </div>
@@ -256,24 +275,24 @@ button.ghost{ background:transparent; }
       <span></span>
     </div>
     <div class="statbar">
-      <div class="statcell"><div class="l">card</div><div class="v" id="stat-pos">-</div></div>
-      <div class="statcell"><div class="l">reviewed</div><div class="v" id="stat-rev">0</div></div>
-      <div class="statcell"><div class="l">correct</div><div class="v" id="stat-cor">0</div></div>
-      <div class="statcell"><div class="l">accuracy</div><div class="v" id="stat-acc">0%</div></div>
+      <div class="statcell"><div class="l">카드</div><div class="v" id="stat-pos">-</div></div>
+      <div class="statcell"><div class="l">복습</div><div class="v" id="stat-rev">0</div></div>
+      <div class="statcell"><div class="l">정답</div><div class="v" id="stat-cor">0</div></div>
+      <div class="statcell"><div class="l">정확도</div><div class="v" id="stat-acc">0%</div></div>
     </div>
     <div class="card" id="card" onclick="flipCard()">
       <div class="front" id="card-front">-</div>
       <button class="speak-btn" id="speak-btn" onclick="speakCurrentWord(event)" aria-label="발음 듣기" title="발음 듣기">🔊</button>
       <div class="back" id="card-back">-</div>
-      <div class="hint" id="card-hint">tap to reveal</div>
+      <div class="hint" id="card-hint">눌러서 정답 보기</div>
     </div>
     <div class="gradebar">
-      <button class="no" onclick="gradeCard(false)">✕ 몰라요 (didn't know)</button>
-      <button class="yes" onclick="gradeCard(true)">✓ 알아요 (knew it)</button>
+      <button class="no" onclick="gradeCard(false)">✕ 몰라요</button>
+      <button class="yes" onclick="gradeCard(true)">✓ 알아요</button>
     </div>
     <div class="toolbar">
-      <button onclick="shuffleDeck()">⟲ shuffle</button>
-      <button onclick="resetStats()">↺ reset stats</button>
+      <button onclick="shuffleDeck()">⟲ 섞기</button>
+      <button onclick="resetStats()">↺ 기록 초기화</button>
     </div>
   </div>
 
@@ -281,19 +300,19 @@ button.ghost{ background:transparent; }
   <div id="view-results" class="hidden">
     <div class="backbar">
       <span class="back" onclick="goHome()">← 홈으로</span>
-      <span class="deck-title">결과 (results)</span>
+      <span class="deck-title">결과</span>
       <span></span>
     </div>
     <div class="results">
       <div class="score" id="res-score">0/0</div>
-      <div class="acc" id="res-acc">accuracy 0%</div>
+      <div class="acc" id="res-acc">정확도 0%</div>
       <div id="res-wrong-wrap">
         <div class="wronglist" id="res-wronglist"></div>
       </div>
       <div class="actions">
-        <button class="primary" id="res-retry-btn" onclick="retryWrongOnly()">틀린 것만 다시 (retry wrong only)</button>
-        <button onclick="restartFullDeck()">처음부터 다시 (restart full deck)</button>
-        <button class="ghost" onclick="goHome()">홈으로 (home)</button>
+        <button class="primary" id="res-retry-btn" onclick="retryWrongOnly()">틀린 것만 다시</button>
+        <button onclick="restartFullDeck()">처음부터 다시</button>
+        <button class="ghost" onclick="goHome()">홈으로</button>
       </div>
     </div>
   </div>
@@ -368,15 +387,18 @@ function pct(correct, total){ return total ? Math.round(correct/total*100) : 0; 
 /* ---------- level config ---------- */
 var LV5_DATA = LV3_DATA.concat(LV4_DATA);
 var LEVELS = [
-  {id:'lv1', tag:'LEVEL 1', title:'기본 자모', desc:'자음 19 + 모음 10 · 29장', data:LV1_DATA, sub:false},
-  {id:'lv2', tag:'LEVEL 2', title:'전체 음절표', desc:'자음 x 모음 · 190장', data:LV2_DATA, sub:true},
-  {id:'lv3', tag:'LEVEL 3', title:'상용 어휘', desc:'常用词汇 · 70장', data:LV3_DATA, sub:true},
-  {id:'lv4', tag:'LEVEL 4', title:'TOPIK 단어장', desc:'Word List 1-22 · 866장', data:LV4_DATA, sub:true},
-  {id:'lv5', tag:'LEVEL 5', title:'혼합 (Lv3+Lv4)', desc:'混合词汇 · ' + LV5_DATA.length + '장', data:LV5_DATA, sub:true}
+  {id:'lv1', tag:'1단계', title:'기본 자모', desc:'자음 19 + 모음 10 · 29장', data:LV1_DATA, sub:false},
+  {id:'lv2', tag:'2단계', title:'전체 음절표', desc:'자음 × 모음 · 190장', data:LV2_DATA, sub:true},
+  {id:'lv3', tag:'3단계', title:'상용 어휘', desc:'자주 쓰는 어휘 · 70장', data:LV3_DATA, sub:true},
+  {id:'lv4', tag:'4단계', title:'토픽 단어장', desc:'단어 목록 1-22 · 866장', data:LV4_DATA, sub:true},
+  {id:'lv5', tag:'5단계', title:'혼합 (3+4단계)', desc:'혼합 어휘 · ' + LV5_DATA.length + '장', data:LV5_DATA, sub:true}
 ];
 
 /* ---------- review state ---------- */
 var deck = [], pos = 0, revealed = false;
+var reviewMode = 'flashcard';
+var pendingMode = 'flashcard';
+var customMode = 'flashcard';
 var sessionReviewed = 0, sessionCorrect = 0;
 var wrongMap = {};
 var deckLabel = '', topLevelId = '';
@@ -404,6 +426,13 @@ function renderHome(){
       '<p>' + lv.desc + '</p>' +
       '<div class="stat">' + statLine + '</div>' +
     '</div>';
+    if(!lv.sub){
+      html += '<div class="sublevel-panel" id="panel-' + lv.id + '">' +
+        '<span class="close" onclick="closeSublevel(\'' + lv.id + '\', event)">닫기 ✕</span>' +
+        '<strong>' + lv.title + ' — 모드 선택</strong>' +
+        '<div class="row" id="chips-' + lv.id + '"></div>' +
+      '</div>';
+    }
     if(lv.sub){
       html += '<div class="sublevel-panel" id="panel-' + lv.id + '">' +
         '<span class="close" onclick="closeSublevel(\'' + lv.id + '\', event)">닫기 ✕</span>' +
@@ -415,7 +444,7 @@ function renderHome(){
   var cst = stats['custom'];
   var customStatLine = cst && cst.reviewed ? ('누적 정확도 ' + pct(cst.correct, cst.reviewed) + '% · ' + cst.reviewed + '회 학습') : (customData.length + '장 저장됨');
   html += '<div class="block custom" onclick="openCustomBuilder()">' +
-    '<div class="tag">MY DECK</div>' +
+    '<div class="tag">내 카드</div>' +
     '<h2>직접 만들기</h2>' +
     '<p>나만의 단어 카드 추가</p>' +
     '<div class="stat">' + customStatLine + '</div>' +
@@ -425,40 +454,73 @@ function renderHome(){
 
 function onLevelClick(id){
   var lv = LEVELS.filter(function(l){ return l.id===id; })[0];
-  if(!lv.sub){
-    startReview(lv.id, lv.data, lv.title);
-    showView('review');
-    return;
-  }
   var panel = document.getElementById('panel-' + id);
   var wasOpen = panel.classList.contains('open');
   document.querySelectorAll('.sublevel-panel').forEach(function(p){ p.classList.remove('open'); });
   if(!wasOpen){
     panel.classList.add('open');
-    var chunks = chunkArray(lv.data, 20);
-    var chipsHtml = '<span class="chip full" onclick="startFromChunk(\'' + id + '\', -1, event)">전체 (' + lv.data.length + '장)</span>';
-    chunks.forEach(function(c, i){
-      chipsHtml += '<span class="chip" onclick="startFromChunk(\'' + id + '\', ' + i + ', event)">' + (i+1) + ' (' + c.length + ')</span>';
-    });
-    document.getElementById('chips-' + id).innerHTML = chipsHtml;
+    document.getElementById('chips-' + id).innerHTML =
+      '<div class="mode-row">' +
+        '<span class="chip full mode-chip" onclick="selectReviewMode(\'' + id + '\', \'dictation\', event)">받아쓰기</span>' +
+        '<span class="chip full mode-chip" onclick="selectReviewMode(\'' + id + '\', \'flashcard\', event)">카드 학습</span>' +
+      '</div>';
   }
 }
 function closeSublevel(id, ev){ ev.stopPropagation(); document.getElementById('panel-'+id).classList.remove('open'); }
+
+function selectReviewMode(id, mode, ev){
+  ev.stopPropagation();
+  pendingMode = mode;
+  var lv = LEVELS.filter(function(l){ return l.id===id; })[0];
+  var dictClass = mode === 'dictation' ? 'chip full mode-chip active' : 'chip full mode-chip';
+  var flashClass = mode === 'flashcard' ? 'chip full mode-chip active' : 'chip full mode-chip';
+  var modeHtml =
+    '<div class="mode-row">' +
+      '<span class="' + dictClass + '" onclick="selectReviewMode(\'' + id + '\', \'dictation\', event)">받아쓰기</span>' +
+      '<span class="' + flashClass + '" onclick="selectReviewMode(\'' + id + '\', \'flashcard\', event)">카드 학습</span>' +
+    '</div>';
+  if(!lv.sub){
+    document.getElementById('chips-' + id).innerHTML =
+      modeHtml +
+      '<span class="chip full" onclick="startWholeLevel(\'' + id + '\', event)">시작 (' + lv.data.length + '장)</span>';
+    return;
+  }
+  var chunks = chunkArray(lv.data, 20);
+  var chipsHtml =
+    modeHtml +
+    '<span class="chip full" onclick="startFromChunk(\'' + id + '\', -1, event)">전체 (' + lv.data.length + '장)</span>';
+  chunks.forEach(function(c, i){
+    chipsHtml += '<span class="chip" onclick="startFromChunk(\'' + id + '\', ' + i + ', event)">' + (i+1) + ' (' + c.length + ')</span>';
+  });
+  document.getElementById('chips-' + id).innerHTML = chipsHtml;
+}
+
+function startWholeLevel(levelId, ev){
+  ev.stopPropagation();
+  var lv = LEVELS.filter(function(l){ return l.id===levelId; })[0];
+  startReview(lv.id, lv.data, lv.title, pendingMode);
+  showView('review');
+}
 
 function startFromChunk(levelId, chunkIndex, ev){
   ev.stopPropagation();
   var lv = LEVELS.filter(function(l){ return l.id===levelId; })[0];
   if(chunkIndex === -1){
-    startReview(lv.id, lv.data, lv.title + ' · 전체');
+    startReview(lv.id, lv.data, lv.title + ' · 전체', pendingMode);
   }else{
     var chunks = chunkArray(lv.data, 20);
-    startReview(lv.id, chunks[chunkIndex], lv.title + ' · ' + (chunkIndex+1));
+    startReview(lv.id, chunks[chunkIndex], lv.title + ' · ' + (chunkIndex+1), pendingMode);
   }
   showView('review');
 }
 
 /* ---------- custom deck builder ---------- */
 function openCustomBuilder(){ renderCustomList(); showView('custom'); }
+function selectCustomMode(mode){
+  customMode = mode;
+  document.getElementById('custom-dictation-mode').classList.toggle('active', mode === 'dictation');
+  document.getElementById('custom-flashcard-mode').classList.toggle('active', mode === 'flashcard');
+}
 function renderCustomList(){
   var html = '';
   if(customData.length === 0){
@@ -488,12 +550,13 @@ function deleteCustomCard(i){
 }
 function startCustomReview(){
   if(customData.length === 0){ alert('먼저 카드를 추가하세요.'); return; }
-  startReview('custom', customData, '직접 만들기');
+  startReview('custom', customData, '직접 만들기', customMode);
   showView('review');
 }
 
 /* ---------- review engine ---------- */
-function startReview(levelId, data, label){
+function startReview(levelId, data, label, mode){
+  reviewMode = mode || 'flashcard';
   topLevelId = levelId;
   deckLabel = label;
   originalDeckForRestart = data.slice();
@@ -511,15 +574,20 @@ function renderCard(){
   var c = deck[pos];
   var cardEl = document.getElementById('card');
   cardEl.classList.toggle('small', c.q.length > 3);
-  document.getElementById('card-front').textContent = c.q;
-  document.getElementById('card-back').textContent = c.a;
+  if(reviewMode === 'dictation'){
+    document.getElementById('card-front').textContent = '';
+    document.getElementById('card-back').textContent = c.q + ' — ' + c.a;
+    document.getElementById('card-hint').textContent = '듣고 종이에 써 보세요';
+  }else{
+    document.getElementById('card-front').textContent = c.q;
+    document.getElementById('card-back').textContent = c.a;
+    document.getElementById('card-hint').textContent = '눌러서 정답 보기';
+  }
   document.getElementById('card-back').style.visibility = 'hidden';
-  document.getElementById('card-hint').textContent = 'tap to reveal';
   document.getElementById('card-hint').style.visibility = 'visible';
   document.getElementById('speak-btn').classList.toggle('hidden', !ttsSupported);
   revealed = false;
   document.getElementById('stat-pos').textContent = (pos+1) + '/' + deck.length;
-  
 }
 function renderStats(){
   document.getElementById('stat-rev').textContent = sessionReviewed;
@@ -529,6 +597,9 @@ function renderStats(){
 function flipCard(){
   if(revealed) return;
   revealed = true;
+  if(reviewMode === 'dictation'){
+    document.getElementById('card-front').textContent = deck[pos].q;
+  }
   document.getElementById('card-back').style.visibility = 'visible';
   document.getElementById('card-hint').style.visibility = 'hidden';
 }
@@ -557,7 +628,7 @@ function resetStats(){
 function showResults(){
   showView('results');
   document.getElementById('res-score').textContent = sessionCorrect + '/' + sessionReviewed;
-  document.getElementById('res-acc').textContent = 'accuracy ' + pct(sessionCorrect, sessionReviewed) + '%';
+  document.getElementById('res-acc').textContent = '정확도 ' + pct(sessionCorrect, sessionReviewed) + '%';
   var wrongList = Object.keys(wrongMap).map(function(k){ return wrongMap[k]; });
   var wrap = document.getElementById('res-wronglist');
   var retryBtn = document.getElementById('res-retry-btn');
