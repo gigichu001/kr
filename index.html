@@ -444,7 +444,7 @@ function speakCurrentWordParts(ev){
   words.forEach(function(word, wordIndex){
     var steps = hangulPhonicsStepsForWord(word);
     queue = queue.concat(steps);
-    if(wordIndex < words.length - 1) queue.push({pause: });
+    if(wordIndex < words.length - 1) queue.push({pause: 1000});
   });
   if(!queue.length) return;
   speakKoQueue(queue);
@@ -664,8 +664,8 @@ function updateCardTimer(){
   var timerEl = document.getElementById('card-timer');
   if(!timerEl || !cardStartedAt) return;
   var elapsed = Date.now() - cardStartedAt;
-  timerEl.textContent = '시간 ' + (elapsed / ).toFixed(1) + '초';
-  timerEl.classList.toggle('late', elapsed > );
+  timerEl.textContent = '시간 ' + (elapsed / 1000).toFixed(1) + '초';
+  timerEl.classList.toggle('late', elapsed > 3000);
 }
 function startCardTimer(){
   stopCardTimer();
@@ -768,7 +768,7 @@ function showResults(){
     if(slowList.length){
       html += '<div class="group-title">익숙하지 않음</div>';
       slowList.forEach(function(c){
-        var seconds = slowTimeMap[c.q] ? (slowTimeMap[c.q] / 3000).toFixed(1) + '초' : '';
+        var seconds = slowTimeMap[c.q] ? (slowTimeMap[c.q] / 1000).toFixed(1) + '초' : '';
         html += '<div class="item"><span class="q">' + escapeHtml(c.q) + '</span><span class="a">' + escapeHtml(c.a) + '</span><span class="time">' + seconds + '</span></div>';
       });
     }
